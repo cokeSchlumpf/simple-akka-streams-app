@@ -1,5 +1,6 @@
 package com.example
 
+import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
 
@@ -14,7 +15,13 @@ object SimpleApplication extends App {
   StreamSample
     .apply()
     .run()
-    .map(_ => system.terminate)
-    .onComplete(_ => println("Done"))
-
+    .recover({
+      case ex =>
+        ex.printStackTrace()
+        Done
+    })
+    .flatMap(_ => system.terminate())
+    .andThen({
+      case _ => println("Done.")
+    })
 }

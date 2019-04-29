@@ -10,6 +10,9 @@ lazy val root = (project in file(".")).
     )),
     name := "httptest",
     libraryDependencies ++= Seq(
+      // TODO mw: Hier noch die Abhäbgigkeit zum Oracle Treiber hinzufügen, equivalent zum H2 Treiber
+      "com.h2database" % "h2" % "1.4.199",
+      
       "com.lightbend.akka" %% "akka-stream-alpakka-slick" % alpakkaVersion,
       
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,

@@ -6,17 +6,62 @@ import akka.stream.scaladsl.{Flow, Source}
 import akka.{Done, NotUsed}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util._
 
 case class StreamSample(implicit val system: ActorSystem, materializer: Materializer, ec: ExecutionContext) {
 
-  def run(): Future[Done] = {
-    Source(1 to 10)
-      .map(i => "Text " + i)
-      .via(httpRequest)
-      .runForeach(println)
+  def run(): Future[Done] = slickSourcePrepare
+    .andThen({
+      case _ => println("\n----\n")
+    })
+    .flatMap(_ => stream())
+    .andThen({
+      case Success(_) => println("Stream finished.")
+      case _ =>
+    })
+
+  def stream(): Future[Done] = slickSource
+    .via(httpRequest)
+    .runForeach(println)
+
+  def slickSourcePrepare: Future[Done] = {
+    import akka.stream.alpakka.slick.scaladsl._
+    import akka.stream.scaladsl._
+
+    implicit val session: SlickSession = SlickSession.forConfig("slick-h2")
+    import session.profile.api._
+
+    Source
+      .single(sqlu"CREATE TABLE FOO (FOO VARCHAR(64), BAR VARCHAR(64))")
+      .runWith(Slick.sink(stmt => stmt))
+      .andThen({
+        case Success(_) => println("Create Table Foo ...")
+        case _ =>
+      })
+      .flatMap(_ => Source(1 to 10)
+        .map(i => sqlu"INSERT INTO FOO (FOO, BAR) VALUES ('FOO_#$i', 'BAR')")
+        .runWith(Slick.sink(stmt => stmt))
+        .andThen({
+          case Success(_) => println("Inserted data ...")
+          case _ =>
+        }))
   }
 
+  def slickSource: Source[String, NotUsed] = {
+    import akka.stream.alpakka.slick.scaladsl._
+    import slick.jdbc.GetResult
 
+    /*
+     * Entsprechend "slick-oracle" nutzen, wenn ihr auf die richtige Db möchtet.
+     */
+    implicit val session: SlickSession = SlickSession.forConfig("slick-h2")
+    import session.profile.api._
+
+    implicit val getResult: GetResult[String] = GetResult(_.nextString())
+
+    Slick
+      .source(sql"SELECT FOO FROM FOO".as[String])
+  }
 
   /*
    * Alles was nötig ist für einen HTTP Call ...
@@ -52,7 +97,7 @@ case class StreamSample(implicit val system: ActorSystem, materializer: Material
      */
     object JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
       implicit val requestFormat: RootJsonFormat[Request] = jsonFormat3(Request)
-      implicit val responseFormat:RootJsonFormat[Response] = jsonFormat4(Response)
+      implicit val responseFormat: RootJsonFormat[Response] = jsonFormat4(Response)
     }
 
     import JsonSupport._
