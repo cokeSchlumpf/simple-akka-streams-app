@@ -15,6 +15,6 @@ object SimpleApplication extends App {
 
   stream
     .slickSourcePrepare
-    .map(_ => new SimpleServer(stream).startServer("localhost", 8080))
+    .map(_ => new SimpleServer(stream).startServer("0.0.0.0", 8080))
 
 }
