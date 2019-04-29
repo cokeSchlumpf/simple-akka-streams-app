@@ -2,6 +2,12 @@ lazy val akkaHttpVersion = "10.1.8"
 lazy val akkaVersion = "2.5.22"
 lazy val alpakkaVersion = "1.0.0"
 
+/*
+ * TODO mw:
+ * Hier ggf. das interne Nexus Repository hinzufügen
+ */
+// resolvers += "Nexus" at "<URL>"
+
 lazy val root = (project in file(".")).
   settings(
     inThisBuild(List(
@@ -10,7 +16,12 @@ lazy val root = (project in file(".")).
     )),
     name := "httptest",
     libraryDependencies ++= Seq(
-      // TODO mw: Hier noch die Abhäbgigkeit zum Oracle Treiber hinzufügen, equivalent zum H2 Treiber
+      /*
+       * TODO mw: 
+       * Hier noch die Abhäbgigkeit zum Oracle Treiber hinzufügen, equivalent zum H2 Treiber.
+       * Der Treiber sollte im Nexus unter den genutzen Koordinaten verfügbar sein
+       */
+      // "com.oracle" % "ojdbc" % "14",
       "com.h2database" % "h2" % "1.4.199",
 
       "com.lightbend.akka" %% "akka-stream-alpakka-elasticsearch" % alpakkaVersion,
