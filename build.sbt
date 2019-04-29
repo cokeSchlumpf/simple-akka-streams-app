@@ -12,9 +12,10 @@ lazy val root = (project in file(".")).
     libraryDependencies ++= Seq(
       // TODO mw: Hier noch die Abhäbgigkeit zum Oracle Treiber hinzufügen, equivalent zum H2 Treiber
       "com.h2database" % "h2" % "1.4.199",
-      
+
+      "com.lightbend.akka" %% "akka-stream-alpakka-elasticsearch" % alpakkaVersion,
       "com.lightbend.akka" %% "akka-stream-alpakka-slick" % alpakkaVersion,
-      
+
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion,
@@ -24,5 +25,5 @@ lazy val root = (project in file(".")).
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
       "org.scalatest" %% "scalatest" % "3.0.5" % Test
-    )
-  )
+    ),
+    mainClass in assembly := Some("com.example.SimpleApplication"))

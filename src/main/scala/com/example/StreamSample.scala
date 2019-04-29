@@ -2,10 +2,10 @@ package com.example
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Source}
-import akka.{Done, NotUsed}
+import akka.stream.scaladsl.{ Flow, Sink, Source }
+import akka.{ Done, NotUsed }
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util._
 
 case class StreamSample(implicit val system: ActorSystem, materializer: Materializer, ec: ExecutionContext) {
@@ -22,7 +22,49 @@ case class StreamSample(implicit val system: ActorSystem, materializer: Material
 
   def stream(): Future[Done] = slickSource
     .via(httpRequest)
-    .runForeach(println)
+    // TODO mw:
+    // replace ...
+    .runWith(Sink.foreach(println))
+  // with ..
+  // .runWith(elasticsearchSink)
+
+  def elasticsearchSink: Sink[String, NotUsed] = {
+    import org.apache.http.HttpHost
+    import org.elasticsearch.client.RestClient
+    import akka.stream.alpakka.elasticsearch.WriteMessage
+    import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
+    import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+    import spray.json._
+
+    /*
+     * Domain model
+     *
+     * Format für JSON Dokument in ES, wird mit Spray in JSON gewandelt ...
+     */
+    case class Document(country: String, capital: String)
+
+    /*
+     * Dies wird benötigt um in Request/ Response in JSON HTTP Entities zu wandeln
+     */
+    object JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
+      implicit val requestFormat: RootJsonFormat[Document] = jsonFormat2(Document)
+    }
+
+    import JsonSupport._
+
+    /*
+     * TODO mw
+     * Hier die Connection URL für ES anpassen und unten den Indexname, ggf. Type name.
+     */
+    implicit val client: RestClient = RestClient.builder(new HttpHost("localhost", 9201)).build()
+
+    Flow[String]
+      .zipWithIndex
+      .map({
+        case (s, _) => WriteMessage.createIndexMessage(Document(s, s))
+      })
+      .to(ElasticsearchSink.create[Document]("index_name", "_type"))
+  }
 
   def slickSourcePrepare: Future[Done] = {
     import akka.stream.alpakka.slick.scaladsl._
@@ -30,6 +72,10 @@ case class StreamSample(implicit val system: ActorSystem, materializer: Material
 
     implicit val session: SlickSession = SlickSession.forConfig("slick-h2")
     import session.profile.api._
+
+    /*
+     * Hier fügen wir ein paar Daten in eine in-memory H2 Datenbank ein (ebenfalls mit Slick und Akka Streams) ...
+     */
 
     Source
       .single(sqlu"CREATE TABLE FOO (FOO VARCHAR(64), BAR VARCHAR(64))")
@@ -82,7 +128,6 @@ case class StreamSample(implicit val system: ActorSystem, materializer: Material
      * Ggf. muss das jsonFormat angepasst werden wenn die Request/ Response-Klassen geändert werden. Einfach die Zahl
      * nach jsonFormat an die Anzahl der Parameter anpassen.
      */
-
 
     /*
      * Domain model, jup - In Scala kann man Klassen innerhalb von Methoden definieren ;)
